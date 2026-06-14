@@ -59,6 +59,6 @@ RingDB/
 We have successfully initialized the repository folder layout, finalized data flows, and written all markdown documentation. We also configured the Redis-style Tri-License and added the integrated CLI tool ecosystem.
 
 ### 🎯 Remaining Tasks in Order:
-*   [ ] **Step 1:** Write the master `CMakeLists.txt` file to link `liburing`, setup both execution targets, and configure compiler optimizations flags (`-O3` and `-march=native`).
+*   [x] **Step 1:** Write the master `CMakeLists.txt` file to link `liburing`, setup both execution targets, and configure compiler optimizations flags (`-O3` and `-march=native`).
 *   [ ] **Step 2:** Code the foundational `src/main.c` entry point for core thread pool initialization.
 *   [ ] **Step 3:** Build the core data structures (SPSC Rings, Arena Allocator, Hash Maps).
