@@ -13,6 +13,7 @@ RingDB is a drop-in replacement for Redis and is fully compatible with the stand
 *   **🌀 Lockless SPSC Core Highways**: Uses Single-Producer Single-Consumer ring queues driven by low-level hardware atomics (`<stdatomic.h>`). Cross-core pointer transfers execute in under 10 nanoseconds over L3 cache line flushes.
 *   **🧱 Private Arena Allocators**: Bypasses the memory fragmentation and performance spikes of standard heap allocations (`malloc`). Data is written into clean, contiguous memory pools.
 *   **🛠️ Zero-Copy RESP Parsing**: Employs vectorized SIMD operations to read tokens directly inside network cache blocks, preventing unneeded string copies during database reads.
+*   **🖥️ Built-in Interactive CLI**: Includes `ringdb-cli`, a standalone interactive command-line interface featuring zero-dependency autocomplete and command history powered by an integrated `linenoise` core.
 
 ---
 
@@ -34,14 +35,21 @@ On an **AWS `c6gn.16xlarge`** server (64 CPU cores, 100 Gbps network card), Ring
 RingDB/
 ├── .github/workflows/       # Automated CI/CD testing pipelines
 ├── include/                 # Public C header interface declarations (.h)
+│   ├── ring_db.h            # Main definitions and global settings
+│   ├── ring_highway.h       # Cross-core lockless SPSC declarations
+│   ├── arena.h              # Private Shard Arena memory allocations
+│   └── parser.h             # RESP command parser definitions
 ├── src/                     # Core engine implementation files (.c)
-│   ├── main.c               # Server bootstrap & thread pinning
+│   ├── main.c               # Server bootstrap & thread pinning (ringdb-server)
 │   ├── iouring_backend.c    # Asynchronous network event loops
 │   ├── ring_highway.c       # Atomic core-to-core channels
-│   └── cli.c                # Interactive prompt (ringdb-cli)
+│   ├── arena.c              # Custom non-fragmenting memory pools
+│   ├── parser.c             # Zero-copy RESP network string parser
+│   └── cli.c                # Interactive command line terminal tool (ringdb-cli)
+├── deps/                    # Lightweight third-party primitives (linenoise)
 ├── docs/                    # Architecture blueprints and design files
 ├── CMakeLists.txt          # Project build configuration
-└── LICENSE                  # Business Source License (BSL 1.1)
+└── LICENSE                  # RingDB Tri-License Agreement
 ```
 
 ---
@@ -56,37 +64,49 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install build-essential cmake git liburing-dev -y
 ```
 
-### 2. Clone and Open in VS Code
-Clone the repository into your Linux workspace directory:
+### 2. Clone and Compile
+Clone the repository and compile both the server engine and interactive CLI utilities simultaneously using our CMake matrix:
 
 ```bash
 git clone https://github.com
 cd RingDB
-code .
+
+# Initialize the build directory
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j\$(nproc)
+```
+
+### 3. Launching the Cluster
+Once compiled, you can launch the database instance and connect to it using our custom toolset:
+
+```bash
+# Terminal 1: Run the high-performance database server
+./ringdb-server
+
+# Terminal 2: Run the interactive command-line client to execute queries
+./ringdb-cli
 ```
 
 ---
 
 ## 🤝 Contributing to RingDB
 
-We love community involvement! RingDB is a community-driven project under the **Business Source License 1.1**. Anyone is welcome to contribute features, optimize bottlenecks, or open issue tickets.
+We love community involvement! Anyone is welcome to contribute features, optimize bottlenecks, or open issue tickets.
 
 ### How to Propose Changes:
 1. **Fork the Repository**: Create an independent copy of RingDB to write your changes.
 2. **Set Up a Feature Branch**: Keep your main branch clean (`git checkout -b feature/amazing-optimization`).
 3. **Write Tests**: Ensure your code includes testing scripts inside the `tests/` path.
-4. **Commit with Intention**: Write clear commit logs following standard styling conventions.
+4. **Run the Benchmarks**: If you are optimizing a core component, you must provide benchmark logs proving your change does not drop our overall QPS.
 5. **Open a Pull Request**: Submit your branch to our main project line for peer review.
-
-*Note: Contributors must sign an automated Contributor License Agreement (CLA) bot request upon opening a Pull Request to verify intellectual distribution rights.*
 
 ---
 
 ## 🔏 Licensing & Commercial Use
 
-RingDB is source-available software licensed under the **Business Source License 1.1 (BSL)**. 
-* It is **100% free** to modify and run in development and production environments for internal needs.
-* It is strictly forbidden to use this codebase to offer a commercial, paid database hosting service, managed cloud deployment (DBaaS), or a direct caching market competitor.
-* Every release version automatically transitions into an open-source **Apache License 2.0** exactly four years after deployment.
+RingDB is licensed under a **Tri-License framework** (mirroring the modern Redis legal strategy). As a user or contributor, you can choose to interact with this software under any **ONE** of the following tracks:
 
-For custom commercial scale or cloud provider inquiries, contact the maintaining organization directly.
+1. **AGPLv3 (GNU Affero General Public License v3)**: 100% open source. Requires anyone modifying and hosting RingDB over a network to open-source their entire infrastructure.
+2. **SSPLv1 (Server Side Public License v1)**: Free for internal use. Strictly bans using the code to provide a competing, paid database-as-a-service (DBaaS) unless you open-source your hosting management software stack.
+3. **RSALv2 (Redis Source Available License v2 Equivalent)**: Free for internal production workloads. Explicitly prohibits utilizing this software to build a commercial database platform, caching product, or paid hosting service.
