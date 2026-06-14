@@ -60,5 +60,10 @@ We have successfully initialized the repository folder layout, finalized data fl
 
 ### 🎯 Remaining Tasks in Order:
 *   [x] **Step 1:** Write the master `CMakeLists.txt` file to link `liburing`, setup both execution targets, and configure compiler optimizations flags (`-O3` and `-march=native`).
-*   [ ] **Step 2:** Code the foundational `src/main.c` entry point for core thread pool initialization.
-*   [ ] **Step 3:** Build the core data structures (SPSC Rings, Arena Allocator, Hash Maps).
+*   [x] **Step 2:** Code the foundational `src/main.c` entry point for core thread pool initialization and hardware CPU pinning.
+*   [ ] **Step 3:** Build the asynchronous `src/iouring_backend.c` network loop (Multi-shot Accept/Recv).
+*   [ ] **Step 4:** Build the cross-core lockless `src/ring_highway.c` SPSC atomic messaging lanes.
+*   [ ] **Step 5:** Build the private shard memory pool `src/arena.c` linear allocator.
+*   [ ] **Step 6:** Build the zero-copy, SIMD-accelerated RESP string parser `src/parser.c`.
+*   [ ] **Step 7:** Build the internal shard Hash Map structure.
+*   [ ] **Step 8:** Build the interactive command-line terminal tool `src/cli.c`.
