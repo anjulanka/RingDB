@@ -8,7 +8,8 @@ Dev Environment:      WSL2 Ubuntu Sandbox via VS Code (Targeting Linux Kernel 5.
 Programming Language: Pure C (Strictly avoiding C++ runtime / abstractions)
 Wire Protocol:        100% RESP (Redis Serialization Protocol) Compliant
 Market Positioning:   An open-source, ultra-high-performance drop-in replacement
-                      for Redis and Dragonfly DB.
+                      for Redis and Dragonfly DB. Fully includes native server
+                      and client CLI utilities.
 
 --------------------------------------------------------------------------------
 [CORE ARCHITECTURAL PILLARS]
@@ -25,6 +26,9 @@ Market Positioning:   An open-source, ultra-high-performance drop-in replacement
    contiguous blocks of RAM, appending writes sequentially for clean cache lines.
 6. Zero-Copy RESP Parser: Reads incoming text tokens directly inside network cache
    buffers using SIMD vector acceleration. No heap copies for read workloads.
+7. Dual Ecosystem Binaries: Architecture splits into 'ringdb-server' (the core 
+   multithreaded network engine) and 'ringdb-cli' (an interactive console prompt 
+   leveraging the lightweight 'linenoise' utility for text history and autocomplete).
 
 --------------------------------------------------------------------------------
 [LEGAL, GOVERNANCE & MONETIZATION]
@@ -38,28 +42,31 @@ Market Positioning:   An open-source, ultra-high-performance drop-in replacement
 [REPOSITORY ARCHITECTURE BLUEPRINT]
 RingDB/
 ├── .github/workflows/       # Automated CI/CD pipelines
+├── deps/                    # Lightweight third-party primitives (linenoise)
+├── docs/                    # Architecture charts (README / ARCHITECTURE.md)
 ├── include/                 # C Public Interface Declarations (.h)
 │   ├── ring_db.h            # Globals & Configurations
 │   ├── ring_highway.h       # SPSC Atomic Highway Channels
-│   └── arena.h              # Private Shard Arena Allocations
+│   ├── arena.h              # Private Shard Arena Allocations
+│   └── parser.h             # RESP Command Parser Declarations
 ├── src/                     # Core Source Implementation (.c)
-│   ├── main.c               # Thread Management & Bootstrap Entry
+│   ├── main.c               # Thread Management & Server Bootstrap (ringdb-server)
 │   ├── iouring_backend.c    # Async Network Ingestion
 │   ├── ring_highway.c       # Inter-core Communication Channels
 │   ├── arena.c              # Linear Allocation Pools
 │   ├── parser.c             # Zero-copy SIMD RESP Tokenizer
-│   └── cli.c                # Interactive Client Tool (ringdb-cli)
-├── docs/                    # Architecture charts (README / ARCHITECTURE.md)
-└── CMakeLists.txt          # Root Project Compilation Instructions
+│   └── cli.c                # Interactive Client Tool Terminal (ringdb-cli)
+└── CMakeLists.txt          # Root Project Compilation Instructions (Dual Targets)
 
 --------------------------------------------------------------------------------
 [PROJECT ROADMAP & REMAINING TASKS]
-We have successfully initialized the repository, finalized the high-level data
-flows, written the markdown documentation (README, ARCHITECTURE, CONTRIBUTING),
-configured the Tri-License framework, and updated your Windows 11 WSL2 environment.
+We have successfully initialized the repository folder layout, finalized data flows,
+and written all markdown documentation. We also configured the Redis-style Tri-License 
+and added the integrated CLI tool ecosystem.
 
 NEXT STEPS IN LINE:
-Step 1: Write the master CMakeLists.txt file to link liburing and configure -O3 flags.
+Step 1: Write the master CMakeLists.txt file to link liburing, setup both execution targets, 
+        and configure compiler optimizations flags (-O3 and -march=native).
 Step 2: Code the foundational main.c entry point for core thread pool initialization.
 Step 3: Build the core data structures (SPSC Rings, Arena Allocator, Hash Maps).
 ================================================================================
