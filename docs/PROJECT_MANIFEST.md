@@ -80,6 +80,6 @@ We have successfully built the base server, interactive CLI client, and applied 
 *   [x] **Fix 5:** Inject `IORING_SETUP_SINGLE_ISSUER` flag to drop submission queue contention.
 
 ### 🔮 Phase 3: Advanced Optimization & Scaling (Remaining)
-*   [ ] **Step 9:** Upgrade the remote data paths to use the **Full Async Highway Request/Response Pattern** (removes cross-core cache contention completely).
+*   [x] **Step 9:** Upgrade the remote data paths to use the **Full Async Highway Request/Response Pattern** (removes cross-core cache contention completely).
 *   [ ] **Step 10:** Implement a high-velocity **benchmarking script** to monitor your exact Queries Per Second (QPS) capacity.
 *   [ ] **Step 11:** Set up automated integration tests inside `.github/workflows/`.
