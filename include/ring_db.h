@@ -32,4 +32,7 @@ int db_set(shard_table_t *table, const char *key, size_t key_len, const char *va
 db_entry_t* db_get(shard_table_t *table, const char *key, size_t key_len);
 int db_del(shard_table_t *table, const char *key, size_t key_len);
 
+#define NUM_CORES 8
+extern shard_table_t *shard_storage[NUM_CORES];
+
 #endif // RING_DB_H

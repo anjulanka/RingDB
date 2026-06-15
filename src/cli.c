@@ -48,17 +48,87 @@ void print_resp_response(char *response) {
     } else if (response[0] == '-') {
         // Error String Response (e.g., -ERR) -> Print red text
         printf("\033[0;31m(error) %s\033[0m\n", response + 1);
-    } else if (response[0] == '$') {
-        // Bulk String Response (e.g., $5\r\nvalue\r\n)
-        char *ptr = strchr(response, '\r');
-        if (ptr && *(ptr + 2) == '-') {
-            printf("(nil)\n"); // Null database record check
-        } else if (ptr) {
-            char *data_start = strchr(ptr + 2, '\n');
-            if (data_start) {
-                printf("\"%s\"\n", data_start + 1);
+    } else if (response[0] == '*') {
+        // Array Response (e.g., *3\r\n$6\r\nvalue1\r\n$6\r\nvalue2\r\n$6\r\nvalue3\r\n)
+        char *ptr = response + 1;
+        
+        // Extract array count
+        int array_count = 0;
+        while (*ptr >= '0' && *ptr <= '9') {
+            array_count = (array_count * 10) + (*ptr - '0');
+            ptr++;
+        }
+        
+        // Skip \r\n
+        if (*ptr == '\r' && *(ptr + 1) == '\n') {
+            ptr += 2;
+        }
+        
+        printf("[");
+        // Process each element in the array
+        for (int i = 0; i < array_count; i++) {
+            if (i > 0) printf(", ");
+            
+            if (*ptr == '$') {
+                ptr++;  // Skip '$'
+                int elem_len = 0;
+                int is_negative = 0;
+                
+                if (*ptr == '-') {
+                    is_negative = 1;
+                    ptr++;
+                }
+                
+                while (*ptr >= '0' && *ptr <= '9') {
+                    elem_len = (elem_len * 10) + (*ptr - '0');
+                    ptr++;
+                }
+                
+                // Skip \r\n
+                if (*ptr == '\r' && *(ptr + 1) == '\n') {
+                    ptr += 2;
+                }
+                
+                if (is_negative) {
+                    printf("(nil)");
+                } else {
+                    printf("\"%.*s\"", elem_len, ptr);
+                    ptr += elem_len;
+                    
+                    // Skip trailing \r\n
+                    if (*ptr == '\r' && *(ptr + 1) == '\n') {
+                        ptr += 2;
+                    }
+                }
             }
         }
+        printf("]\n");
+    } else if (response[0] == '$') {
+        // Bulk String Response (e.g., $5\r\nhello\r\n)
+        // Parse: $<length>\r\n<data>\r\n
+        char *ptr = response + 1;  // Skip the '$'
+        
+        // Extract the length number
+        int length = 0;
+        while (*ptr >= '0' && *ptr <= '9') {
+            length = (length * 10) + (*ptr - '0');
+            ptr++;
+        }
+        
+        // Check for null bulk string ($-1)
+        if (length == -1) {
+            printf("(nil)\n");
+            return;
+        }
+        
+        // Skip the \r\n after the length
+        if (*ptr == '\r' && *(ptr + 1) == '\n') {
+            ptr += 2;
+        }
+        
+        // Now ptr points to the start of the data
+        // Print exactly 'length' bytes
+        printf("\"%.*s\"\n", length, ptr);
     } else {
         printf("%s\n", response); // Fallback raw string output
     }

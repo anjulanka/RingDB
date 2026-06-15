@@ -1,0 +1,37 @@
+# ==============================================================================
+# RingDB Git Ignore Rules
+# ==============================================================================
+
+# Ignore entire CMake build directories and cache configurations
+build/
+.cmake/
+CMakeCache.txt
+CMakeFiles/
+CMakeSettings.json
+Makefile
+cmake_install.cmake
+
+# Ignore compiled machine object files and intermediate binaries
+*.o
+*.obj
+*.out
+*.a
+*.so
+*.dylib
+
+# Ignore final compiled target application binaries
+ringdb-server
+ringdb-cli
+
+# Ignore standard text editor configuration overlays
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Ignore typical operating system metadata garbage
+.DS_Store
+Thumbs.db

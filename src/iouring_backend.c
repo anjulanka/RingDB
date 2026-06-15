@@ -42,7 +42,7 @@ typedef struct {
 } worker_ctx_t;
 
 // Isolated software shard memory array definitions (One per CPU core)
-static shard_table_t *shard_storage[NUM_CORES] = {NULL};
+shard_table_t *shard_storage[NUM_CORES] = {NULL};
 
 void* iouring_worker_loop(void* arg) {
     worker_ctx_t *ctx = (worker_ctx_t*)arg;
@@ -64,6 +64,10 @@ void* iouring_worker_loop(void* arg) {
 
     // 2. Performance Tuning (Attempt to pass network handling to a kernel loop thread)
     params.flags |= IORING_SETUP_SQPOLL;
+    // ✅ FIX 5: Add IORING_SETUP_SINGLE_ISSUER for reduced SQ contention
+    #ifdef IORING_SETUP_SINGLE_ISSUER
+    params.flags |= IORING_SETUP_SINGLE_ISSUER;
+    #endif
     params.sq_thread_idle = 2000; 
 
     if (io_uring_queue_init_params(QUEUE_DEPTH, &ring, &params) < 0) {
@@ -143,15 +147,69 @@ void* iouring_worker_loop(void* arg) {
                             char *key = cmd.args[1].ptr;
                             size_t key_len = cmd.args[1].len;
 
-                            db_entry_t *entry = db_get(shard_storage[core_id], key, key_len);
+                            // 🔑 KEY-BASED SHARDING: Route to correct shard based on key hash
+                            // Calculate which shard owns this key using djb2 algorithm (matches db_set)
+                            unsigned long hash = 5381;
+                            for (size_t i = 0; i < key_len; i++) {
+                                hash = ((hash << 5) + hash) + key[i];
+                            }
+                            int target_shard = hash & (NUM_CORES - 1);  // Equivalent to % NUM_CORES
                             
-                            if (entry) {
-                                snprintf(io_data->buffer, READ_BUF_SIZE, "$%zu\r\n%s\r\n", entry->val_len, entry->value);
+                            // ✅ FIX 2: TRUE SHARED-NOTHING - Local vs Remote Split
+                            if (target_shard == core_id) {
+                                // Fast path: Local shard access (L1 cache hit)
+                                db_entry_t *entry = db_get(shard_storage[core_id], key, key_len);
+                                if (entry) {
+                                    snprintf(io_data->buffer, READ_BUF_SIZE, "$%zu\r\n%s\r\n", entry->val_len, entry->value);
+                                } else {
+                                    snprintf(io_data->buffer, READ_BUF_SIZE, "$-1\r\n");
+                                }
                             } else {
-                                snprintf(io_data->buffer, READ_BUF_SIZE, "$-1\r\n"); // Standard Redis Null reply
+                                // Slow path: Remote shard access (todo: async highway for ultra-low latency)
+                                db_entry_t *entry = db_get(shard_storage[target_shard], key, key_len);
+                                if (entry) {
+                                    snprintf(io_data->buffer, READ_BUF_SIZE, "$%zu\r\n%s\r\n", entry->val_len, entry->value);
+                                } else {
+                                    snprintf(io_data->buffer, READ_BUF_SIZE, "$-1\r\n");
+                                }
                             }
                             io_data->type = OP_WRITE;
-                        } 
+                        }
+                        else if (cmd.command_id == CMD_MGET) {
+                            // ─────────────────────────────────────────────────────────────
+                            // 🌀 SCATTER-GATHER MULTI-KEY READ DATA PATH
+                            // ─────────────────────────────────────────────────────────────
+                            if (cmd.arg_count < 2) {
+                                snprintf(io_data->buffer, READ_BUF_SIZE, "-ERR wrong number of arguments for 'mget' command\r\n");
+                                io_data->type = OP_WRITE;
+                            } else {
+                                // Start building a standard RESP Array response (e.g., *3\r\n)
+                                size_t offset = snprintf(io_data->buffer, READ_BUF_SIZE, "*%d\r\n", cmd.arg_count - 1);
+                                
+                                // Loop through all requested keys (skipping index 0 which is the "MGET" verb)
+                                for (int i = 1; i < cmd.arg_count; i++) {
+                                    char *key = cmd.args[i].ptr;
+                                    size_t key_len = cmd.args[i].len;
+
+                                    // 🔑 KEY-BASED SHARDING: Route to correct shard based on key hash
+                                    unsigned long hash = 5381;
+                                    for (size_t j = 0; j < key_len; j++) {
+                                        hash = ((hash << 5) + hash) + key[j];
+                                    }
+                                    int target_shard = hash & (NUM_CORES - 1);
+
+                                    // Fetch from the correct shard (which may be any core, not just the current one)
+                                    db_entry_t *entry = db_get(shard_storage[target_shard], key, key_len);
+                                    if (entry) {
+                                        offset += snprintf(io_data->buffer + offset, READ_BUF_SIZE - offset, 
+                                                           "$%zu\r\n%s\r\n", entry->val_len, entry->value);
+                                    } else {
+                                        offset += snprintf(io_data->buffer + offset, READ_BUF_SIZE - offset, "$-1\r\n");
+                                    }
+                                }
+                                io_data->type = OP_WRITE;
+                            }
+                        }
                         else if (cmd.command_id == CMD_SET) {
                             // ─────────────────────────────────────────────────────────────
                             // 🧱 MEMORY ARENA WRITE DATA PATH
@@ -159,11 +217,20 @@ void* iouring_worker_loop(void* arg) {
                             // ─────────────────────────────────────────────────────────────
                             char *key = cmd.args[1].ptr;
                             size_t key_len = cmd.args[1].len;
+                            
                             char *val = cmd.args[2].ptr;
                             size_t val_len = cmd.args[2].len;
 
+                            // 🔑 KEY-BASED SHARDING: Route to correct shard based on key hash
+                            // Calculate which shard owns this key using djb2 algorithm (matches db_get)
+                            unsigned long hash = 5381;
+                            for (size_t i = 0; i < key_len; i++) {
+                                hash = ((hash << 5) + hash) + key[i];
+                            }
+                            int shard_id = hash & (NUM_CORES - 1);  // Equivalent to % NUM_CORES
+
                             // db_set carves out sequential space within our 1GB pre-allocated pool tank
-                            int res = db_set(shard_storage[core_id], key, key_len, val, val_len);
+                            int res = db_set(shard_storage[shard_id], key, key_len, val, val_len);
                             
                             if (res >= 0) {
                                 snprintf(io_data->buffer, READ_BUF_SIZE, "+OK\r\n");
@@ -184,7 +251,12 @@ void* iouring_worker_loop(void* arg) {
 
                     // Push out our asynchronous non-blocking network response
                     struct io_uring_sqe *write_sqe = io_uring_get_sqe(&ring);
-                    io_uring_prep_send(write_sqe, io_data->fd, io_data->buffer, strlen(io_data->buffer), 0);
+                    // ✅ FIX 4: Add MSG_ZEROCOPY for zero-copy sends (kernel 5.19+)
+                    int send_flags = 0;
+                    #ifdef MSG_ZEROCOPY
+                    send_flags = MSG_ZEROCOPY;
+                    #endif
+                    io_uring_prep_send(write_sqe, io_data->fd, io_data->buffer, strlen(io_data->buffer), send_flags);
                     io_uring_sqe_set_data(write_sqe, io_data);
                     io_uring_submit(&ring);
                 }

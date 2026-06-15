@@ -12,6 +12,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include "ring_db.h"
+#include "ring_highway.h"
 
 #define PORT 6379
 #define NUM_CORES 8 // Optimized specifically for your Ryzen 7 8-Core processor
@@ -70,6 +72,12 @@ int main() {
     printf("[+] Network master gate successfully opened on Port %d\n", PORT);
     printf("[+] Spin up thread pool: %d Shared-Nothing Workers configured.\n", NUM_CORES);
 
+    // ✅ FIX 1: Initialize Lockless Highways for inter-core communication
+    highway_init_matrix(NUM_CORES);
+    
+    // ✅ Phase 3: Initialize Async Request/Response Trackers
+    highway_init_request_trackers(NUM_CORES);
+
     pthread_t threads[NUM_CORES];
     worker_ctx_t worker_contexts[NUM_CORES];
 
@@ -105,6 +113,13 @@ int main() {
     // 7. Keep the master supervisor thread alive by waiting for workers
     for (int i = 0; i < NUM_CORES; i++) {
         pthread_join(threads[i], NULL);
+    }
+
+    for (int i = 0; i < NUM_CORES; i++) {
+        if (shard_storage[i]) {
+            arena_destroy(shard_storage[i]->arena); // Safely frees the 1GB RAM blocks
+            free(shard_storage[i]);
+        }
     }
 
     // Clean shutdown closure

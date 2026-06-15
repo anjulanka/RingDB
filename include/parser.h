@@ -16,6 +16,7 @@
 #define CMD_GET   0x00544547  // "GET" packed as an integer
 #define CMD_SET   0x00544553  // "SET" packed as an integer
 #define CMD_DEL   0x004c4544  // "DEL" packed as an integer
+#define CMD_MGET  0x5445474d  // "MGET" packed as an inline 32-bit integer
 
 // Zero-copy argument tracking token
 typedef struct {

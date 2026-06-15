@@ -8,11 +8,11 @@
 #include <string.h>
 #include <stdlib.h>
 
-// Lightning fast djb2 string hashing algorithm
+// Lightning-fast djb2 string hashing algorithm
 static unsigned long calculate_hash(const char *str, size_t len) {
     unsigned long hash = 5381;
     for (size_t i = 0; i < len; i++) {
-        hash = ((hash << 5) + hash) + str[i]; /* hash * 33 + c */
+        hash = ((hash << 5) + hash) + str[i];
     }
     return hash;
 }
@@ -21,10 +21,8 @@ shard_table_t* db_init_shard(void) {
     shard_table_t *table = malloc(sizeof(shard_table_t));
     if (!table) return NULL;
 
-    // Initialize all bucket head pointers to NULL
     memset(table->buckets, 0, sizeof(table->buckets));
 
-    // Tie this shard directly to its own private 1GB memory arena tank
     table->arena = arena_init_shard();
     if (!table->arena) {
         free(table);
@@ -36,51 +34,51 @@ shard_table_t* db_init_shard(void) {
 
 int db_set(shard_table_t *table, const char *key, size_t key_len, const char *val, size_t val_len) {
     unsigned long hash = calculate_hash(key, key_len);
-    size_t index = hash & (HASH_MAP_BUCKETS - 1); // Fast bitwise AND masking instead of modulo division
+    size_t index = hash & (HASH_MAP_BUCKETS - 1);
 
     db_entry_t *entry = table->buckets[index];
 
-    // Check if the key already exists to overwrite it
+    // 1. Check if the key already exists to overwrite it cleanly
     while (entry != NULL) {
         if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) {
-            // Carve out a fresh space in the private arena for the new value string segment
+            // 🔥 FIXED: Use the local parameter 'val_len', completely free of network packet structures
             char *new_val = arena_alloc(table->arena, val_len + 1);
-            if (!new_val) return -1; // Out of memory block guardrail
+            if (!new_val) return -1;
             
             memcpy(new_val, val, val_len);
             new_val[val_len] = '\0';
             
             entry->value = new_val;
             entry->val_len = val_len;
-            return 0; // Overwrite updated successfully
+            return 0; 
         }
         entry = entry->next;
     }
 
-    // Key is brand new. Carve out structural blocks directly out of our Shard Arena tank!
+    // 2. Key is brand new. Carve storage frames directly out of our pre-allocated RAM Arena
     db_entry_t *new_entry = arena_alloc(table->arena, sizeof(db_entry_t));
     char *arena_key = arena_alloc(table->arena, key_len + 1);
     char *arena_val = arena_alloc(table->arena, val_len + 1);
 
     if (!new_entry || !arena_key || !arena_val) return -1;
 
-    // Copy string byte lines securely into persistent arena blocks
+    // 🔥 FIXED: Uses the clean local 'key' and 'val' function variables directly!
     memcpy(arena_key, key, key_len);
     arena_key[key_len] = '\0';
+    
     memcpy(arena_val, val, val_len);
     arena_val[val_len] = '\0';
 
-    // Populate our structural node properties
     new_entry->key = arena_key;
     new_entry->key_len = key_len;
     new_entry->value = arena_val;
     new_entry->val_len = val_len;
 
-    // Link the new node to the front of the bucket chain (Singly-Linked List insertion)
+    // Link the new record node to the front of the bucket index chain
     new_entry->next = table->buckets[index];
     table->buckets[index] = new_entry;
 
-    return 1; // Direct key-value record storage successful
+    return 1; 
 }
 
 db_entry_t* db_get(shard_table_t *table, const char *key, size_t key_len) {
@@ -89,15 +87,14 @@ db_entry_t* db_get(shard_table_t *table, const char *key, size_t key_len) {
 
     db_entry_t *entry = table->buckets[index];
 
-    // Traverse the chain inside the target bucket slot
     while (entry != NULL) {
         if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) {
-            return entry; // Node element found! Returns reference payload string safely
+            return entry; 
         }
         entry = entry->next;
     }
 
-    return NULL; // Key record does not exist on this shard
+    return NULL; 
 }
 
 int db_del(shard_table_t *table, const char *key, size_t key_len) {
@@ -110,19 +107,15 @@ int db_del(shard_table_t *table, const char *key, size_t key_len) {
     while (entry != NULL) {
         if (entry->key_len == key_len && memcmp(entry->key, key, key_len) == 0) {
             if (prev == NULL) {
-                // Removing the head node of the bucket chain
                 table->buckets[index] = entry->next;
             } else {
-                // Snipping out a link in the middle or end of the chain list
                 prev->next = entry->next;
             }
-            // Note: In a pure sequential arena model, we don't call individual free() on the node.
-            // The memory space stays occupied until arena_reset() clears the entire shard.
-            return 1; // Node deleted successfully from index chain
+            return 1; 
         }
         prev = entry;
         entry = entry->next;
     }
 
-    return 0; // Key did not exist
+    return 0; 
 }
