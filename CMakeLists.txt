@@ -44,6 +44,7 @@ set(SERVER_SOURCES
     src/ring_highway.c
     src/arena.c
     src/parser.c
+    src/ring_db_storage.c
 )
 
 add_executable(ringdb-server ${SERVER_SOURCES})
