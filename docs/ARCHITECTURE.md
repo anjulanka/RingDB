@@ -105,9 +105,9 @@ To prevent memory fragmentation and allocation spikes caused by traditional heap
 1. **Ingestion**: Raw bytes land on Port 6379. The Linux Kernel maps the packet to Core 0's native `io_uring` submission path.
 2. **Parsing**: Core 0's SIMD scanner tokenizes the parameters. The data string remains inside the buffer while an inline hash evaluates the command.
 3. **Routing**: The router calculates `user:9999 % Total_Cores`. The index resolves to **Shard 2**.
-4. **Highway Leap**: Core 0 drops a tiny 16-byte tracking packet containing a buffer reference onto the `Core0_to_Core2` SPSC atomic ring channel.
-5. **Execution**: Core 2 extracts the token during its queue tick, queries its private **Shard 2 Hash Map**, and drops the output reference onto the return lane (`Core2_to_Core0`).
-6. **Network Output**: Core 0 captures the response payload and passes it straight to its native `io_uring` send pipeline. The temporary network buffer slot is instantly recycled. **Total memory copies: 0.**
+4. **Highway Leap**: Core 0 drops an async packet onto the `Core0_to_Core2` SPSC atomic ring channel and registers its local request state table.
+5. **Execution & Return**: Core 2 extracts the token during its unified inbound highway poll, queries its private **Shard 2 Hash Map**, and drops an `OP_HIGHWAY_RESPONSE` directly back onto the return lane (`Core2_to_Core0`).
+6. **Network Output**: Core 0 processes the inbound response natively inside its main highway thread loop, resolves the pending request state entirely lock-free, and passes the payload straight to its native `io_uring` send pipeline. The temporary network buffer slot is instantly recycled. **Total memory copies: 0.**
 
 ### Path B: The Persistent Write Data Flow (`SET user:1122 "active"`)
 1. **Ingestion & Parsing**: Follows the identical path to Core 0, tokenizing the raw payload.
