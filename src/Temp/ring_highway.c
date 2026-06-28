@@ -75,7 +75,8 @@ static void handle_async_get(int core_id, io_context_t *io_data, resp_command_t 
             return;
         }
 
-        highway_request_t req;
+        static highway_request_t req;
+        memset(&req, 0, sizeof(highway_request_t));
         req.op_type = OP_HIGHWAY_GET;
         req.request_id = (uint8_t)req_id;
         req.source_core = (uint8_t)core_id;
@@ -136,7 +137,9 @@ static void handle_async_set(int core_id, io_context_t *io_data, resp_command_t 
             return;
         }
 
-        highway_request_t req = {0};
+        static  highway_request_t req = {0};
+        memset(&req, 0, sizeof(highway_request_t));
+
         req.op_type         = OP_HIGHWAY_SET;
         req.request_id      = (uint8_t)req_id;
         req.source_core     = (uint8_t)core_id;
