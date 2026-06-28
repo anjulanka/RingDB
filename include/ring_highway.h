@@ -66,7 +66,6 @@ typedef struct {
     
     // Metadata
     uint32_t timestamp;              // Request issue time (for timeout detection)
-    char *response_buffer;           // Where to write response (in source core's arena)
     
 } highway_request_t;
 
@@ -96,14 +95,14 @@ typedef enum {
     REQ_STATE_TIMEOUT = 5
 } request_state_t;
 
-// Per-Core Request Tracking (one per core)
+// Per-Core Request Tracking (one per core, heavily padded to prevent False Sharing)
 typedef struct {
     highway_request_t requests[256];           // Track all 256 possible in-flight IDs
-    request_state_t states[256];               // State of each request
+    _Atomic request_state_t states[256];       // 🔥 FIXED: Explicitly marked _Atomic to allow lock-free state stepping
     uint8_t next_request_id;                   // Next ID to assign (auto-wrapping)
     _Atomic unsigned int pending_count;        // How many requests in flight
     
-} request_tracker_t;
+} __attribute__((aligned(64))) request_tracker_t;
 
 // Structural initialization and management functions
 void highway_init_matrix(int total_cores);
@@ -112,10 +111,9 @@ int highway_pop(int src_core, int dest_core, ring_packet_t *packet);
 
 // Phase 3: Async Request/Response Functions
 void highway_init_request_trackers(int total_cores);
-uint8_t highway_alloc_request_id(int source_core);
+int highway_alloc_request_id(int source_core);
 int highway_send_request(int source_core, int target_core, highway_request_t *req);
 int highway_process_requests(int core_id);
-int highway_collect_responses(int core_id);
 bool highway_request_ready(int source_core, uint8_t request_id);
 highway_response_t* highway_get_response(int source_core, uint8_t request_id);
 void highway_check_request_timeouts(int core_id, uint32_t current_time);
