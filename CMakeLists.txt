@@ -63,3 +63,13 @@ add_executable(ringdb-cli ${CLI_SOURCES})
 
 # Link threads for client interface stability
 target_link_libraries(ringdb-cli PRIVATE pthread)
+
+# ------------------------------------------------------------------------------
+# 🏎️ TARGET 3: BENCHMARK RUNNER
+# ------------------------------------------------------------------------------
+add_custom_target(benchmark
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/run_benchmark.sh
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    DEPENDS ringdb-server
+    COMMENT "Running high-velocity QPS benchmarks..."
+)

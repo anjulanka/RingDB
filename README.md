@@ -68,7 +68,7 @@ sudo apt install build-essential cmake git liburing-dev -y
 Clone the repository and compile both the server engine and interactive CLI utilities simultaneously using our CMake matrix:
 
 ```bash
-git clone https://github.com
+gh repo clone anjulanka/RingDB
 cd RingDB
 
 # Initialize the build directory
@@ -87,6 +87,24 @@ Once compiled, you can launch the database instance and connect to it using our 
 # Terminal 2: Run the interactive command-line client to execute queries
 ./ringdb-cli
 ```
+
+### 4. Running Performance Benchmarks
+RingDB includes an automated, high-velocity QPS benchmarking suite powered by `memtier_benchmark` to validate its millions of Ops/Sec capacity.
+
+To run the benchmark suite:
+1. **Install Benchmark Dependencies (Ubuntu/WSL2):**
+   ```bash
+   sudo apt install -y libpcre2-dev autoconf automake libevent-dev pkg-config zlib1g-dev libssl-dev
+   git clone https://github.com/RedisLabs/memtier_benchmark.git ~/memtier_benchmark
+   cd ~/memtier_benchmark
+   autoreconf -ivf && ./configure && make && sudo make install
+   ```
+2. **Execute the Suite:**
+   ```bash
+   cd ~/projects/RingDB/build
+   make benchmark
+   ```
+   This will automatically spin up the background database engine, saturate it with concurrent Redis pipelines, and output a full latency distribution graph.
 
 ---
 
