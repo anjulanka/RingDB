@@ -9,7 +9,11 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define MAX_RESP_ARGS 16
+/* MAX_RESP_ARGS: maximum arguments accepted per RESP command.
+ * SET/GET use 3/2 args. MGET supports up to MAX_RESP_ARGS-1 keys.
+ * 64 lets clients issue MGET with 63 keys in one round trip — well above
+ * the typical 10-20 key MGET used in production. */
+#define MAX_RESP_ARGS 64
 
 // Fast 32-bit inline integer constants representing parsed Redis commands
 #define CMD_PING  0x474e4950  // "PING" packed as an integer

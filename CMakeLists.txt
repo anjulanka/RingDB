@@ -49,6 +49,13 @@ set(SERVER_SOURCES
 
 add_executable(ringdb-server ${SERVER_SOURCES})
 
+# Allow build-time core count without editing source:
+#   cmake -DNUM_CORES=64 ..   (must be a power of 2; defaults to 8)
+if(NOT DEFINED NUM_CORES)
+    set(NUM_CORES 8)
+endif()
+target_compile_definitions(ringdb-server PRIVATE NUM_CORES=${NUM_CORES})
+
 # Explicitly link standard thread support and native io_uring system drivers
 target_link_libraries(ringdb-server PRIVATE pthread ${URING_LIB})
 
@@ -65,11 +72,39 @@ add_executable(ringdb-cli ${CLI_SOURCES})
 target_link_libraries(ringdb-cli PRIVATE pthread)
 
 # ------------------------------------------------------------------------------
-# 🏎️ TARGET 3: BENCHMARK RUNNER
+# 🏎️ TARGET 3: NATIVE BENCHMARK BINARY (ringdb-bench)
+# ------------------------------------------------------------------------------
+set(BENCH_SOURCES
+    benchmark/bench.c
+)
+
+add_executable(ringdb-bench ${BENCH_SOURCES})
+target_link_libraries(ringdb-bench PRIVATE pthread)
+
+# ------------------------------------------------------------------------------
+# 🏎️ TARGET 4: ONE-COMMAND NATIVE BENCHMARK (make bench)
+# Spins up ringdb-server, saturates it with ringdb-bench, then tears it down.
+# Defaults: 4 threads × 8 conns = 32 connections, pipeline=16, 10 s, 50/50 mix.
+# Override any flag: make bench BENCH_ARGS="-t 8 -c 16 -P 32 -d 30 -r 0"
+# ------------------------------------------------------------------------------
+if(NOT DEFINED BENCH_ARGS)
+    set(BENCH_ARGS "-t 4 -c 8 -P 16 -d 10 -n 100000 -r 50")
+endif()
+
+add_custom_target(bench
+    COMMAND ${CMAKE_SOURCE_DIR}/scripts/run_native_bench.sh ${BENCH_ARGS}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS ringdb-server ringdb-bench
+    COMMENT "RingDB native benchmark: ${BENCH_ARGS}"
+    USES_TERMINAL
+)
+
+# ------------------------------------------------------------------------------
+# 🏎️ TARGET 5: LEGACY BENCHMARK RUNNER (make benchmark — requires memtier)
 # ------------------------------------------------------------------------------
 add_custom_target(benchmark
     COMMAND ${CMAKE_SOURCE_DIR}/scripts/run_benchmark.sh
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     DEPENDS ringdb-server
-    COMMENT "Running high-velocity QPS benchmarks..."
+    COMMENT "Running memtier_benchmark suite (requires: sudo apt install memtier-benchmark)"
 )

@@ -138,11 +138,11 @@ int main() {
     int sock_fd;
     struct sockaddr_in server_addr;
     char input_buffer[BUFFER_SIZE];
-    char resp_buffer[BUFFER_SIZE];
-    char recv_buffer[BUFFER_SIZE];
+    char request_buffer[BUFFER_SIZE];
+    char response_buffer[BUFFER_SIZE];
 
     printf("=========================================================\n");
-    printf("🌀 RingDB Interactive Command Line Utility (ringdb-cli)\n");
+    printf("RingDB Interactive Command Line Utility (ringdb-cli)\n");
     printf("Connecting to instance on %s:%d...\n", SERVER_IP, PORT);
     printf("=========================================================\n");
 
@@ -183,30 +183,30 @@ int main() {
         if (strcasecmp(input_buffer, "exit") == 0) break;
 
         // Clean memory buffers
-        memset(resp_buffer, 0, sizeof(resp_buffer));
-        memset(recv_buffer, 0, sizeof(recv_buffer));
+        memset(request_buffer, 0, sizeof(request_buffer));
+        memset(response_buffer, 0, sizeof(response_buffer));
 
         // 3. Serialize plain console strings into RESP bytes
-        serialize_to_resp(input_buffer, resp_buffer, sizeof(resp_buffer));
-        if (strlen(resp_buffer) == 0) continue;
+        serialize_to_resp(input_buffer, request_buffer, sizeof(request_buffer));
+        if (strlen(request_buffer) == 0) continue;
 
         // 4. Send packet down socket wire line to server
-        if (send(sock_fd, resp_buffer, strlen(resp_buffer), 0) < 0) {
+        if (send(sock_fd, request_buffer, strlen(request_buffer), 0) < 0) {
             perror("[-] Error: Data transmission transmission link failed");
             break;
         }
 
         // 5. Read back response string packet
-        int bytes_read = recv(sock_fd, recv_buffer, sizeof(recv_buffer) - 1, 0);
+        int bytes_read = recv(sock_fd, response_buffer, sizeof(response_buffer) - 1, 0);
         if (bytes_read <= 0) {
             printf("[-] Connection closed by database server instance.\n");
             break;
         }
 
-        recv_buffer[bytes_read] = '\0';
+        response_buffer[bytes_read] = '\0';
 
         // 6. Output pretty color formatted response lines
-        print_resp_response(recv_buffer);
+        print_resp_response(response_buffer);
     }
 
     close(sock_fd);

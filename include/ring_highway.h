@@ -11,7 +11,21 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define RING_SIZE 512 // Must remain a power of 2 for fast bitwise masking operations
+/* RING_SIZE: must remain a power of 2 for the (index & mask) fast-path.
+ *
+ * Sizing rationale:
+ *   - 256 request-ID slots exist per core (uint8_t wraps at 256), so the ring
+ *     can never carry more than 256 in-flight packets per direction.  Any value
+ *     above 256 wastes cache without adding capacity.
+ *   - 256 × 16 bytes = 4 KB per ring.  8×8 matrix (64 rings excl. self-loops)
+ *     = 256 KB — comfortably within L2 on modern cores, so ring slots stay hot.
+ *   - Reducing further (e.g. 64) risks overflow under burst cross-core traffic
+ *     even though the current spin-wait model rarely queues > 1 item at a time.
+ */
+#define RING_SIZE 256
+
+_Static_assert((RING_SIZE & (RING_SIZE - 1)) == 0,
+               "RING_SIZE must be a power of 2");
 
 // The 16-byte transport packet flying across core cache lines
 typedef struct {
@@ -19,11 +33,29 @@ typedef struct {
     void *payload_ptr;   // Direct reference pointer to parsed data or commands
 } ring_packet_t;
 
-// The Single-Producer Single-Consumer Lockless Cache Line Array
+/* Single-Producer Single-Consumer lockless ring.
+ *
+ * Cache-line layout (64-byte lines):
+ *   - buffer[]  : sequential access by both sides, naturally cache-friendly.
+ *   - head       : written ONLY by the producer; padded to its own cache line
+ *                  so the consumer's tail writes never invalidate it.
+ *   - tail       : written ONLY by the consumer; on a separate cache line for
+ *                  the same reason.
+ *
+ * Without this padding, every head write by the producer and every tail write
+ * by the consumer would bounce the shared cache line between cores (~100 ns
+ * per bounce on a typical L3 hit), directly harming highway throughput.
+ */
 typedef struct {
     ring_packet_t buffer[RING_SIZE];
-    _Atomic size_t head; // Modified exclusively by the Producer Core
-    _Atomic size_t tail; // Modified exclusively by the Consumer Core
+
+    /* Producer-owned: keep on its own cache line */
+    _Atomic size_t head __attribute__((aligned(64)));
+    char _head_pad[64 - sizeof(_Atomic size_t)];
+
+    /* Consumer-owned: keep on its own cache line */
+    _Atomic size_t tail __attribute__((aligned(64)));
+    char _tail_pad[64 - sizeof(_Atomic size_t)];
 } spsc_ring_t;
 
 // ============================================================================

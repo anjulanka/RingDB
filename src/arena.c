@@ -15,15 +15,22 @@ arena_pool_t* arena_init_shard(void) {
     pool->capacity = ARENA_SHARD_SIZE;
     pool->offset = 0;
 
-    // Use mmap instead of malloc to request huge, clean pages straight from the Linux kernel.
-    // MAP_ANONYMOUS | MAP_PRIVATE ensures our block is contiguous and private to our process.
-    pool->buffer = mmap(NULL, pool->capacity, PROT_READ | PROT_WRITE, 
-                        MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-
+    /* Prefer 2 MB huge pages to reduce TLB pressure on the 1 GB shard arena.
+     * Each TLB miss on a 4 KB page costs ~100 ns; huge pages cut miss rate
+     * by 512× for sequential arena allocations.
+     * Requires: echo N > /proc/sys/vm/nr_hugepages  (N >= 512 per shard).
+     * Falls back silently to standard 4 KB pages if unavailable. */
+    pool->buffer = mmap(NULL, pool->capacity, PROT_READ | PROT_WRITE,
+                        MAP_ANONYMOUS | MAP_PRIVATE | MAP_HUGETLB, -1, 0);
     if (pool->buffer == MAP_FAILED) {
-        perror("[-] Shard Arena Memory Map Allocation Failed");
-        free(pool);
-        return NULL;
+        /* Huge pages not available — use standard pages */
+        pool->buffer = mmap(NULL, pool->capacity, PROT_READ | PROT_WRITE,
+                            MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (pool->buffer == MAP_FAILED) {
+            perror("[-] Shard Arena Memory Map Allocation Failed");
+            free(pool);
+            return NULL;
+        }
     }
 
     return pool;

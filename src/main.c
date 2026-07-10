@@ -16,7 +16,7 @@
 #include "ring_highway.h"
 
 #define PORT 6379
-#define NUM_CORES 8 // Optimized specifically for your Ryzen 7 8-Core processor
+/* NUM_CORES is defined in ring_db.h — do not redefine here. */
 
 // Forward declaration of our async network runner located in iouring_backend.c
 void* iouring_worker_loop(void* arg);

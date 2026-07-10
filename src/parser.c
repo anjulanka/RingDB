@@ -79,5 +79,5 @@ int resp_parse_buffer(char *buffer, size_t buffer_len, resp_command_t *out_comma
     }
     
     out_command->command_id = hash;
-    return 0; 
+    return (int)(ptr - buffer); /* bytes consumed */
 }

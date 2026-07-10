@@ -9,7 +9,11 @@
 #include "arena.h"
 #include <stddef.h>
 
-#define HASH_MAP_BUCKETS 65536 // Must be a power of 2 for fast bitwise indexing
+#define HASH_MAP_BUCKETS 262144 /* 256K buckets per shard; must be power of 2.
+ *   Memory cost : 256K × 8B ptr = 2 MB per shard, 16 MB across 8 shards.
+ *   At 1M keys  : ~3.8 keys/shard → avg chain 0.015  (near O(1)).
+ *   At 10M keys : avg chain 0.15  (still excellent).
+ *   Previous 65536 gave avg chain length ~1.9 at 1M keys, degrading towards O(n). */
 
 // A single key-value structural record node inside our map bucket chains
 typedef struct db_entry {
@@ -32,7 +36,14 @@ int db_set(shard_table_t *table, const char *key, size_t key_len, const char *va
 db_entry_t* db_get(shard_table_t *table, const char *key, size_t key_len);
 int db_del(shard_table_t *table, const char *key, size_t key_len);
 
+/* NUM_CORES: must be a power of 2 (used as a bitmask for shard routing).
+ * Override at cmake configure time: cmake -DNUM_CORES=64 ..
+ * Default matches a typical 8-core workstation; set to 64 for c6gn.16xlarge. */
+#ifndef NUM_CORES
 #define NUM_CORES 8
+#endif
+_Static_assert((NUM_CORES & (NUM_CORES - 1)) == 0,
+               "NUM_CORES must be a power of 2 for O(1) shard routing");
 extern shard_table_t *shard_storage[NUM_CORES];
 
 #endif // RING_DB_H
