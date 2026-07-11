@@ -159,7 +159,13 @@ int highway_process_requests(int core_id) {
             
             // Loop with hardware pause hint to prevent spinning up system bus temperatures if saturated
             while (!highway_push(core_id, src, resp_packet)) {
-                __asm__ volatile ("pause");
+               #if defined(__x86_64__) || defined(_M_X64)
+                    __asm__ volatile ("pause");
+                    #elif defined(__aarch64__) || defined(_M_ARM64)
+                        __asm__ volatile ("yield" : : : "memory");
+                    #else
+                        struct timespec ts = {0, 1000}; nanosleep(&ts, NULL);
+               #endif
             }
         }
     }
