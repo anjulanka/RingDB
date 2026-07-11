@@ -31,7 +31,9 @@
 #include <unistd.h>
 
 /* ── compile-time defaults ──────────────────────────────────────────────── */
-#define DEF_HOST      "127.0.0.1"
+#ifndef DEF_HOST
+#define DEF_HOST "127.0.0.1"
+#endif
 #define DEF_PORT      6379
 #define DEF_THREADS   4
 #define DEF_CONNS     4

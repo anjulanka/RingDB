@@ -30,7 +30,9 @@
  * ≈ 8.8 KB.  64 KB gives comfortable headroom for any realistic workload and
  * keeps each io_context_t well below 128 KB (acceptable per-connection cost). */
 #define READ_BUF_SIZE 65536
-#define NUM_CORES 8 // Matches your hardware Ryzen 7 configuration setup
+#ifndef NUM_CORES
+#define NUM_CORES 8 // Default fallback matches your hardware Ryzen 7 configuration setup
+#endif
 
 // Tracking tokens for our async completions
 enum {

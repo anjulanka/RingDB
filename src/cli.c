@@ -10,7 +10,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#ifndef SERVER_IP
 #define SERVER_IP "127.0.0.1"
+#endif
 #define PORT 6379
 #define BUFFER_SIZE 4096
 

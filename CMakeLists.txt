@@ -93,17 +93,35 @@ target_link_libraries(ringdb-bench PRIVATE pthread)
 # Defaults: 4 threads × 8 conns = 32 connections, pipeline=16, 10 s, 50/50 mix.
 # Override any flag: make bench BENCH_ARGS="-t 8 -c 16 -P 32 -d 30 -r 0"
 # ------------------------------------------------------------------------------
+
+# Toggle to skip local server launch (default: ON)
+option(START_LOCAL_SERVER "Start local server" ON)
+set(BENCH_HOST "127.0.0.1" CACHE STRING "Host for benchmark")
+
+# Compile the target host definition directly into the benchmark binary
+target_compile_definitions(ringdb-bench PRIVATE DEF_HOST="${BENCH_HOST}")
+
 if(NOT DEFINED BENCH_ARGS)
     set(BENCH_ARGS "-t 4 -c 8 -P 16 -d 10 -n 100000 -r 50")
 endif()
 
-add_custom_target(bench
-    COMMAND ${CMAKE_SOURCE_DIR}/scripts/run_native_bench.sh ${BENCH_ARGS}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS ringdb-server ringdb-bench
-    COMMENT "RingDB native benchmark: ${BENCH_ARGS}"
-    USES_TERMINAL
-)
+# Conditional execution: Local server script vs Direct remote targeting
+if(START_LOCAL_SERVER)
+    add_custom_target(bench
+        COMMAND ${CMAKE_SOURCE_DIR}/scripts/run_native_bench.sh ${BENCH_ARGS}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS ringdb-server ringdb-bench
+        COMMENT "RingDB native benchmark: ${BENCH_ARGS}"
+        USES_TERMINAL
+    )
+else()
+    add_custom_target(bench
+        COMMAND ${CMAKE_BINARY_DIR}/ringdb-bench -h ${BENCH_HOST} ${BENCH_ARGS}
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        DEPENDS ringdb-bench
+        COMMENT "RingDB native benchmark: ${BENCH_ARGS}"
+    )
+endif()
 
 # ------------------------------------------------------------------------------
 # 🏎️ TARGET 5: LEGACY BENCHMARK RUNNER (make benchmark — requires memtier)
