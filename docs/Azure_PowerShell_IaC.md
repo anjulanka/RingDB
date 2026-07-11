@@ -38,12 +38,13 @@ az network public-ip create `
   --sku Standard
 
 # 4. Create and Configure Production Firewall (NSG)
-Write-Host "Creating Network Security Group and opening SSH port 22..." -ForegroundColor Cyan
+Write-Host "Creating Network Security Group and opening default ports..." -ForegroundColor Cyan
 az network nsg create `
   --resource-group $RESOURCE_GROUP `
   --name "RingDB-Bench-NSG" `
   --location $LOCATION
 
+# Rule for Remote Administration
 az network nsg rule create `
   --resource-group $RESOURCE_GROUP `
   --nsg-name "RingDB-Bench-NSG" `
@@ -51,6 +52,17 @@ az network nsg rule create `
   --protocol Tcp `
   --priority 1000 `
   --destination-port-ranges 22 `
+  --access Allow `
+  --direction Inbound
+
+# Rule for External Database Benchmarking (Port 6379)
+az network nsg rule create `
+  --resource-group $RESOURCE_GROUP `
+  --nsg-name "RingDB-Bench-NSG" `
+  --name "AllowRingDBTraffic" `
+  --protocol Tcp `
+  --priority 1010 `
+  --destination-port-ranges 6379 `
   --access Allow `
   --direction Inbound
 
