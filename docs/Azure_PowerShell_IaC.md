@@ -33,7 +33,7 @@ az network vnet create `
   --subnet-prefixes "10.0.1.0/24"
 
 az network public-ip create `
-  --resource-group \$RESOURCE_GROUP `
+  --resource-group $RESOURCE_GROUP `
   --name "RingDB-Bench-PublicIP" `
   --sku Standard
 
@@ -45,7 +45,7 @@ az network nsg create `
   --location $LOCATION
 
 az network nsg rule create `
-  --resource-group \$RESOURCE_GROUP `
+  --resource-group $RESOURCE_GROUP `
   --nsg-name "RingDB-Bench-NSG" `
   --name "AllowSSHInbound" `
   --protocol Tcp `
@@ -57,7 +57,7 @@ az network nsg rule create `
 # 5. Bind Network Interface with Accelerated Networking & Firewall
 Write-Host "Assembling network interface card with Accelerated Networking..." -ForegroundColor Cyan
 az network nic create `
-  --resource-group \$RESOURCE_GROUP `
+  --resource-group $RESOURCE_GROUP `
   --name "RingDB-Bench-NIC" `
   --vnet-name "RingDB-Bench-VNet" `
   --subnet "BenchSubnet" `
@@ -66,14 +66,14 @@ az network nic create `
   --accelerated-networking true  # Crucial for high-throughput network database benchmarking
 
 # 6. Deploy the Targeted ARM64 Spot Virtual Machine
-Write-Host "Deploying \$VM_SIZE Spot VM Instance. This may take 1-2 minutes..." -ForegroundColor Cyan
+Write-Host "Deploying $VM_SIZE Spot VM Instance. This may take 1-2 minutes..." -ForegroundColor Cyan
 az vm create `
   --resource-group $RESOURCE_GROUP `
-  --name \$VM_NAME `
+  --name $VM_NAME `
   --size $VM_SIZE `
-  --image \$IMAGE `
+  --image $IMAGE `
   --nics "RingDB-Bench-NIC" `
-  --admin-username \$ADMIN_USER `
+  --admin-username $ADMIN_USER `
   --generate-ssh-keys `
   --priority Spot `
   --max-price -1 `
