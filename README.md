@@ -111,12 +111,16 @@ make bench
 This runs 4 client threads × 8 connections × pipeline depth 16 for 10 seconds with a 50/50 SET/GET mix. Override any parameter inline:
 
 ```bash
-# GET-heavy, larger key space, longer duration
-cmake .. -DBENCH_ARGS="-t 4 -c 8 -P 16 -d 30 -n 1000000 -r 0"
+# Run Locally - GET-heavy, larger key space, longer duration
+cmake -DSTART_LOCAL_SERVER=ON -DBENCH_ARGS="-t 4 -c 8 -P 16 -d 30 -n 1000000 -r 0" ..
 make bench
 
-# Maximum saturation test (large value, high pipeline)
-cmake .. -DBENCH_ARGS="-t 8 -c 16 -P 32 -d 60 -s 512 -n 100000 -r 50"
+# Run Remote - Connect to Remote VM
+cmake -DSTART_LOCAL_SERVER=OFF -DBENCH_HOST=20.197.59.221 -DBENCH_ARGS="-t 8 -c 16 -P 32 -d 30" ..
+make bench
+
+# Run Locally - Maximum saturation test (large value, high pipeline)
+cmake -DSTART_LOCAL_SERVER=ON -DBENCH_ARGS="-t 8 -c 16 -P 32 -d 60 -s 512 -n 100000 -r 50" ..
 make bench
 ```
 
