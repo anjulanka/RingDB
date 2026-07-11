@@ -21,7 +21,7 @@ $ADMIN_USER     = "benchmarker"
 
 # 2. Create the Resource Container
 Write-Host "Creating resource group..." -ForegroundColor Cyan
-az group create --name \(RESOURCE_GROUP --location\)LOCATION
+az group create --name $RESOURCE_GROUP --location $LOCATION
 
 # 3. Provision the Low-Latency Network Architecture
 Write-Host "Configuring high-velocity virtual network infrastructure..." -ForegroundColor Cyan
