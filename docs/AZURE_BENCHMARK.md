@@ -134,7 +134,7 @@ autoreconf -ivf && ./configure && make && sudo make install
 cd ~
 
 # 3. Clone and build RingDB
-git clone https://github.com
+git clone https://github.com/anjulanka/RingDB
 cd RingDB
 mkdir build && cd build
 cmake ..
