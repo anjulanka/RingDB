@@ -68,6 +68,12 @@ set(CLI_SOURCES
 
 add_executable(ringdb-cli ${CLI_SOURCES})
 
+# Allow build-time target IP specification (defaults to loopback if omitted)
+if( NOT DEFINED SERVER_IP)
+    set(SERVER_IP "127.0.0.1")
+endif()
+target_compile_definitions( ringdb-cli PRIVATE SERVER_IP="${SERVER_IP}")
+
 # Link threads for client interface stability
 target_link_libraries(ringdb-cli PRIVATE pthread)
 
