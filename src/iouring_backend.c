@@ -29,7 +29,7 @@
  * burst in one recv call.  Worst case: pipeline=16 × (header ~50B + value 512B)
  * ≈ 8.8 KB.  64 KB gives comfortable headroom for any realistic workload and
  * keeps each io_context_t well below 128 KB (acceptable per-connection cost). */
-#define READ_BUF_SIZE 65536
+#define READ_BUF_SIZE 262144  // 256 KB allocation headroom for dense SET pipelines
 #ifndef NUM_CORES
 #define NUM_CORES 8 // Default fallback matches your hardware Ryzen 7 configuration setup
 #endif
