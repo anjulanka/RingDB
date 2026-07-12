@@ -164,7 +164,7 @@ void* iouring_worker_loop(void* arg) {
     #ifdef IORING_SETUP_SINGLE_ISSUER
     params.flags |= IORING_SETUP_SINGLE_ISSUER;
     #endif
-    params.sq_thread_idle = 10; /* ms: SQPOLL thread parks after 10 ms idle.
+    params.sq_thread_idle = 2000; /* ms: SQPOLL thread parks after 10 ms idle.
                                   * Under load it stays perpetually awake.
                                   * 2000 ms (old default) wasted a full CPU
                                   * core for 2 s after every quiet period. */
@@ -261,8 +261,35 @@ void* iouring_worker_loop(void* arg) {
             }
         }
 
-        // Step C: Non-blocking check for new network events (busy-poll for ultra-low latency)
-        if (io_uring_peek_cqe(&ring, &cqe) != 0) continue;
+        // ============================================================================
+        // Step C: Adaptive Threshold Fallback (Yields CPU to awaken SQPOLL thread)
+        // ============================================================================
+        int peek_ret = io_uring_peek_cqe(&ring, &cqe);
+
+        if (peek_ret != 0) {
+            // Completed ring is empty. Track spins before falling back to kernel sleep.
+            static __thread uint64_t spin_count = 0;
+            spin_count++;
+
+            if (spin_count < 4096) {
+                // High-velocity burst path: hint the CPU to yield its hyperthread execution slot
+                #if defined(__x86_64__)
+                    __asm__ __volatile__("pause" ::: "memory");
+                #endif
+                continue;
+            }
+
+            // Slow path: Line went quiet. Perform a blocking wait to let SQPOLL run unthrottled
+            spin_count = 0;
+            int wait_ret = io_uring_wait_cqe(&ring, &cqe);
+            if (wait_ret < 0) {
+                continue;
+            }
+        } else {
+            // Network hit registered: Reset our adaptive tracking counter
+            static __thread uint64_t spin_count = 0;
+            spin_count = 0;
+        }
 
         io_context_t *io_data = (io_context_t*)io_uring_cqe_get_data(cqe);
 
