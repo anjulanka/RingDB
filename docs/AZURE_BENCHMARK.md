@@ -127,13 +127,20 @@ Execute this consolidated code block inside the VM console to populate dependenc
 # 1. Update operating system packages and deploy development headers
 sudo apt update && sudo apt install -y build-essential git cmake liburing-dev htop
 
-# 2. Compile memtier_benchmark client engine
-git clone https://github.com
-cd memtier_benchmark
-autoreconf -ivf && ./configure && make && sudo make install
-cd ~
+# 1. Update your system dependencies and install required setup tools
+sudo apt-get update && sudo apt-get install -y lsb-release curl gpg
 
-# 3. Clone and build RingDB
+# 2. Securely download and register the official Redis repository signing key
+curl -fsSL https://redis.io | sudo gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+
+# 3. Add the official Redis APT production feed to your source distributions list
+echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://redis.io $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/redis.list
+
+# 4. Synchronize the package indexes and deploy the optimized production binary
+sudo apt-get update
+sudo apt-get install -y memtier-benchmark
+
+# 5. Clone and build RingDB
 git clone https://github.com/anjulanka/RingDB
 cd RingDB
 mkdir build && cd build
