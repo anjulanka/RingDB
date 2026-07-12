@@ -272,11 +272,9 @@ void* iouring_worker_loop(void* arg) {
                 __asm__ __volatile__("pause" ::: "memory");
             #endif
             
-            pthread_yield(); // Yield to the kernel SQPOLL thread or network drivers sharing this core
+            // Replaced deprecated pthread_yield() with standard POSIX sched_yield()
+            sched_yield(); 
             continue;        // Immediately loop back to catch inbound highway inter-shard packets
-        } else {
-            // Network hit registered: Safely clear the variable without re-declaring it
-            spin_count = 0;
         }
 
         io_context_t *io_data = (io_context_t*)io_uring_cqe_get_data(cqe);
