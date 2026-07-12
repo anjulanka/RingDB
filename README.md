@@ -8,12 +8,12 @@ RingDB is a drop-in replacement for Redis and is fully compatible with the stand
 
 ## Core Features & Architectural Innovations
 
-*   **⚡ Shared-Nothing Multi-Core Engine**: Eliminates slow global locks (mutexes) and spinlocks. Each thread owns an isolated data shard and operates at maximum hardware speed.
-*   **🐧 Native `io_uring` Ingestion Layer**: Bypasses traditional `epoll` system calls. Uses modern kernel features like Multi-shot Accept/Recv and `SQPOLL` for true asynchronous network traffic handling.
-*   **🌀 Lockless SPSC Core Highways**: Uses Single-Producer Single-Consumer ring queues driven by low-level hardware atomics (`<stdatomic.h>`). Cross-core pointer transfers execute in under 10 nanoseconds over L3 cache line flushes.
-*   **🧱 Private Arena Allocators**: Bypasses the memory fragmentation and performance spikes of standard heap allocations (`malloc`). Data is written into clean, contiguous memory pools.
-*   **🛠️ Zero-Copy RESP Parsing**: Employs vectorized SIMD operations to read tokens directly inside network cache blocks, preventing unneeded string copies during database reads.
-*   **🖥️ Built-in Interactive CLI**: Includes `ringdb-cli`, a standalone interactive command-line interface featuring zero-dependency autocomplete and command history powered by an integrated `linenoise` core.
+*   ** Shared-Nothing Multi-Core Engine**: Eliminates slow global locks (mutexes) and spinlocks. Each thread owns an isolated data shard and operates at maximum hardware speed.
+*   ** Native `io_uring` Ingestion Layer**: Bypasses traditional `epoll` system calls. Uses modern kernel features like Multi-shot Accept/Recv and `SQPOLL` for true asynchronous network traffic handling.
+*   ** Lockless SPSC Core Highways**: Uses Single-Producer Single-Consumer ring queues driven by low-level hardware atomics (`<stdatomic.h>`). Cross-core pointer transfers execute in under 10 nanoseconds over L3 cache line flushes.
+*   ** Private Arena Allocators**: Bypasses the memory fragmentation and performance spikes of standard heap allocations (`malloc`). Data is written into clean, contiguous memory pools.
+*   ** Zero-Copy RESP Parsing**: Employs vectorized SIMD operations to read tokens directly inside network cache blocks, preventing unneeded string copies during database reads.
+*   ** Built-in Interactive CLI**: Includes `ringdb-cli`, a standalone interactive command-line interface featuring zero-dependency autocomplete and command history powered by an integrated `linenoise` core.
 
 ---
 
@@ -25,7 +25,7 @@ On an **AWS `c6gn.16xlarge`** server (64 CPU cores, 100 Gbps network card), Ring
 | :--- | :--- | :--- | :--- | :--- |
 | **Redis** | Single-Threaded | `epoll` | ~150K Ops/Sec | N/A (Single-core) |
 | **Dragonfly DB** | Multi-Threaded | Custom `io_uring` | ~3.8M Ops/Sec | Low (Fiber Locking) |
-| **RingDB 🌀** | **Shared-Nothing C** | **Native `io_uring`** | **~4.2M+ Ops/Sec** | ⚡ **Ultra-Low (Atomic Ring)** |
+| **RingDB** | **Shared-Nothing C** | **Native `io_uring`** | **~4.2M+ Ops/Sec** | **Ultra-Low (Atomic Ring)** |
 
 ---
 
