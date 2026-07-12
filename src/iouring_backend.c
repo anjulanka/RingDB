@@ -264,26 +264,16 @@ void* iouring_worker_loop(void* arg) {
         // ============================================================================
         // Step C: Adaptive Threshold Fallback (Yields CPU to awaken SQPOLL thread)
         // ============================================================================
-        static __thread uint64_t spin_count = 0;
-        int peek_ret = io_uring_peek_cqe(&ring, &cqe);
+       int peek_ret = io_uring_peek_cqe(&ring, &cqe);
 
         if (peek_ret != 0) {
-            spin_count++;
-
-            if (spin_count < 4096) {
-                // High-velocity burst path: hint the CPU to yield its hyperthread execution slot
-                #if defined(__x86_64__)
-                    __asm__ __volatile__("pause" ::: "memory");
-                #endif
-                continue;
-            }
-
-            // Slow path: Line went quiet. Reset count and execute a blocking wait
-            spin_count = 0;
-            int wait_ret = io_uring_wait_cqe(&ring, &cqe);
-            if (wait_ret < 0) {
-                continue;
-            }
+            // Queue is momentarily empty. Hint the CPU and cooperatively yield the time slice.
+            #if defined(__x86_64__)
+                __asm__ __volatile__("pause" ::: "memory");
+            #endif
+            
+            pthread_yield(); // Yield to the kernel SQPOLL thread or network drivers sharing this core
+            continue;        // Immediately loop back to catch inbound highway inter-shard packets
         } else {
             // Network hit registered: Safely clear the variable without re-declaring it
             spin_count = 0;
