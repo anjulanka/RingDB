@@ -264,11 +264,10 @@ void* iouring_worker_loop(void* arg) {
         // ============================================================================
         // Step C: Adaptive Threshold Fallback (Yields CPU to awaken SQPOLL thread)
         // ============================================================================
+        static __thread uint64_t spin_count = 0;
         int peek_ret = io_uring_peek_cqe(&ring, &cqe);
 
         if (peek_ret != 0) {
-            // Completed ring is empty. Track spins before falling back to kernel sleep.
-            static __thread uint64_t spin_count = 0;
             spin_count++;
 
             if (spin_count < 4096) {
@@ -279,15 +278,14 @@ void* iouring_worker_loop(void* arg) {
                 continue;
             }
 
-            // Slow path: Line went quiet. Perform a blocking wait to let SQPOLL run unthrottled
+            // Slow path: Line went quiet. Reset count and execute a blocking wait
             spin_count = 0;
             int wait_ret = io_uring_wait_cqe(&ring, &cqe);
             if (wait_ret < 0) {
                 continue;
             }
         } else {
-            // Network hit registered: Reset our adaptive tracking counter
-            static __thread uint64_t spin_count = 0;
+            // Network hit registered: Safely clear the variable without re-declaring it
             spin_count = 0;
         }
 
