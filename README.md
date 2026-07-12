@@ -1,4 +1,4 @@
-# 🌀 RingDB
+# RingDB
 
 **RingDB** is an ultra-high-performance, multi-threaded, in-memory key-value data store written in pure C. Architected for modern multi-core Linux systems, RingDB achieves millions of operations per second on a single machine by using native **`io_uring`** network loops and a lockless **Shared-Nothing** design. 
 
@@ -6,7 +6,7 @@ RingDB is a drop-in replacement for Redis and is fully compatible with the stand
 
 ---
 
-## 🚀 Core Features & Architectural Innovations
+## Core Features & Architectural Innovations
 
 *   **⚡ Shared-Nothing Multi-Core Engine**: Eliminates slow global locks (mutexes) and spinlocks. Each thread owns an isolated data shard and operates at maximum hardware speed.
 *   **🐧 Native `io_uring` Ingestion Layer**: Bypasses traditional `epoll` system calls. Uses modern kernel features like Multi-shot Accept/Recv and `SQPOLL` for true asynchronous network traffic handling.
@@ -17,7 +17,7 @@ RingDB is a drop-in replacement for Redis and is fully compatible with the stand
 
 ---
 
-## 📊 Projected Benchmark Highlights
+## Projected Benchmark Highlights
 
 On an **AWS `c6gn.16xlarge`** server (64 CPU cores, 100 Gbps network card), RingDB is mathematically optimized to perform at the absolute limits of the physical hardware:
 
@@ -29,7 +29,7 @@ On an **AWS `c6gn.16xlarge`** server (64 CPU cores, 100 Gbps network card), Ring
 
 ---
 
-## 📂 Repository Layout
+## Repository Layout
 
 ```text
 RingDB/
@@ -59,7 +59,7 @@ RingDB/
 
 ---
 
-## 🛠️ Setting Up Your Sandbox (Ubuntu / WSL2)
+## Setting Up Your Sandbox (Ubuntu / WSL2)
 
 ### 1. Install System Dependencies
 Make sure your Linux environment has a modern compiler, build tooling, and the required kernel library headers:
@@ -135,7 +135,7 @@ make bench
 
 ---
 
-## 🤝 Contributing to RingDB
+## Contributing to RingDB
 
 We love community involvement! Anyone is welcome to contribute features, optimize bottlenecks, or open issue tickets.
 
@@ -148,9 +148,9 @@ We love community involvement! Anyone is welcome to contribute features, optimiz
 
 ---
 
-## 🔏 Licensing & Commercial Use
+## Licensing & Commercial Use
 
-RingDB is licensed under a **Tri-License framework** (mirroring the modern Redis legal strategy). As a user or contributor, you can choose to interact with this software under any **ONE** of the following tracks:
+RingDB is licensed under a **Tri-License framework**. As a user or contributor, you can choose to interact with this software under any **ONE** of the following tracks:
 
 1. **AGPLv3 (GNU Affero General Public License v3)**: 100% open source. Requires anyone modifying and hosting RingDB over a network to open-source their entire infrastructure.
 2. **SSPLv1 (Server Side Public License v1)**: Free for internal use. Strictly bans using the code to provide a competing, paid database-as-a-service (DBaaS) unless you open-source your hosting management software stack.
