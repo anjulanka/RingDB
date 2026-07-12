@@ -12,12 +12,14 @@ Copy and paste this script directly into your PowerShell terminal. To scale your
 # ==============================================================================
 
 # --- CONFIGURATION LAYER (UPDATE THESE VALUES AS NEEDED) ---
-$RESOURCE_GROUP = "RingDB-Benchmark-RG"
-$LOCATION       = "centralindia"               # Cost-optimized region for ARM compute
-$VM_NAME        = "RingDB-Stage-8C-VM"         # Name of your virtual machine
-$VM_SIZE        = "Standard_D8pds_v5"          # Choose from the SKU Reference Table below
-$IMAGE          = "Canonical:ubuntu-24_04-lts:server-arm64:latest"
-$ADMIN_USER     = "benchmarker"
+$RESOURCE_GROUP     = "RingDB-Benchmark-RG"
+$LOCATION           = "centralindia"               # Cost-optimized region for ARM compute
+$SERVER_VM_NAME     = "RingDB-Stage-Server-VM"     # Name of your server virtual machine
+$CLIENT_VM_NAME     = "RingDB-Stage-Client-VM"     # Name of your client virtual machine
+$VM_SIZE            = "Standard_D8pds_v5"          # Choose from the SKU Reference Table below
+$IMAGE              = "Canonical:ubuntu-24_04-lts:server-arm64:latest"
+$SERVER_ADMIN_USER  = "server_benchmarker"
+$CLIENT_ADMIN_USER  = "client_benchmarker"
 
 # 2. Create the Resource Container
 Write-Host "Creating resource group..." -ForegroundColor Cyan
@@ -32,9 +34,16 @@ az network vnet create `
   --subnet-name "BenchSubnet" `
   --subnet-prefixes "10.0.1.0/24"
 
+# Public IP for Server VM
 az network public-ip create `
   --resource-group $RESOURCE_GROUP `
-  --name "RingDB-Bench-PublicIP" `
+  --name "RingDB-Server-PublicIP" `
+  --sku Standard
+
+# Public IP for Client VM
+az network public-ip create `
+  --resource-group $RESOURCE_GROUP `
+  --name "RingDB-Client-PublicIP" `
   --sku Standard
 
 # 4. Create and Configure Production Firewall (NSG)
@@ -66,30 +75,58 @@ az network nsg rule create `
   --access Allow `
   --direction Inbound
 
-# 5. Bind Network Interface with Accelerated Networking & Firewall
-Write-Host "Assembling network interface card with Accelerated Networking..." -ForegroundColor Cyan
+# 5. Bind Network Interfaces with Accelerated Networking & Firewall
+Write-Host "Assembling network interface cards with Accelerated Networking..." -ForegroundColor Cyan
+
+# NIC for Server VM
 az network nic create `
   --resource-group $RESOURCE_GROUP `
-  --name "RingDB-Bench-NIC" `
+  --name "RingDB-Server-NIC" `
   --vnet-name "RingDB-Bench-VNet" `
   --subnet "BenchSubnet" `
-  --public-ip-address "RingDB-Bench-PublicIP" `
+  --public-ip-address "RingDB-Server-PublicIP" `
   --network-security-group "RingDB-Bench-NSG" `
-  --accelerated-networking true  # Crucial for high-throughput network database benchmarking
+  --accelerated-networking true
 
-# 6. Deploy the Targeted ARM64 Spot Virtual Machine
-Write-Host "Deploying $VM_SIZE Spot VM Instance. This may take 1-2 minutes..." -ForegroundColor Cyan
+# NIC for Client VM (Deployed into the exact same VNet and Subnet)
+az network nic create `
+  --resource-group $RESOURCE_GROUP `
+  --name "RingDB-Client-NIC" `
+  --vnet-name "RingDB-Bench-VNet" `
+  --subnet "BenchSubnet" `
+  --public-ip-address "RingDB-Client-PublicIP" `
+  --network-security-group "RingDB-Bench-NSG" `
+  --accelerated-networking true
+
+# 6. Deploy the Targeted ARM64 Spot Virtual Machines
+# Deploy Server VM Instance
+Write-Host "Deploying $SERVER_VM_NAME Spot VM Instance. This may take 1-2 minutes..." -ForegroundColor Cyan
 az vm create `
   --resource-group $RESOURCE_GROUP `
-  --name $VM_NAME `
+  --name $SERVER_VM_NAME `
   --size $VM_SIZE `
   --image $IMAGE `
-  --nics "RingDB-Bench-NIC" `
-  --admin-username $ADMIN_USER `
+  --nics "RingDB-Server-NIC" `
+  --admin-username $SERVER_ADMIN_USER `
   --generate-ssh-keys `
   --priority Spot `
   --max-price -1 `
   --eviction-policy Delete
+
+# Deploy Client VM Instance
+Write-Host "Deploying $CLIENT_VM_NAME Spot VM Instance. This may take 1-2 minutes..." -ForegroundColor Cyan
+az vm create `
+  --resource-group $RESOURCE_GROUP `
+  --name $CLIENT_VM_NAME `
+  --size $VM_SIZE `
+  --image $IMAGE `
+  --nics "RingDB-Client-NIC" `
+  --admin-username $CLIENT_ADMIN_USER `
+  --generate-ssh-keys `
+  --priority Spot `
+  --max-price -1 `
+  --eviction-policy Delete
+
 
 Write-Host "==============================================================================" -ForegroundColor Green
 Write-Host "DEPLOYMENT COMPLETE! Check the JSON output above for your publicIpAddress." -ForegroundColor Green
